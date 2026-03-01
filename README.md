@@ -39,6 +39,3 @@
 
 ---
 
-### ⚠️ Security Warning
-> [!IMPORTANT]  
-> This frontend implementation requires a backend proxy to securely handle API keys. Ensure `ANTHROPIC_API_KEY` is never exposed in the client-side code when deploying.
