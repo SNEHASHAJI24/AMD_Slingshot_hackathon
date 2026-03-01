@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SentinelAI — Phishing Detection System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:      #1a1f2e;
+  --ink-mid:  #2e3548;
+  --ink-low:  #3e4a60;
+  --mist:     #8896b3;
+  --paper:    #f4f6fb;
+  --surface:  #ffffff;
+  --line:     #e4e8f2;
+  --blue:     #2563eb;
+  --blue-lt:  #dbeafe;
+  --blue-dim: #3b82f6;
+  --red:      #dc2626;
+  --red-lt:   #fee2e2;
+  --amber:    #d97706;
+  --amber-lt: #fef3c7;
+  --green:    #16a34a;
+  --green-lt: #dcfce7;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'Sora', sans-serif;
+  --r-sm: 6px; --r-md: 10px; --r-lg: 16px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  background: var(--paper);
+  color: var(--ink);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: radial-gradient(circle, #c8d0e0 1px, transparent 1px);
+  background-size: 28px 28px;
+  opacity: 0.35;
+  pointer-events: none; z-index: 0;
+}
+body::after {
+  content: '';
+  position: fixed; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--blue) 0%, #60a5fa 50%, #818cf8 100%);
+  z-index: 100;
+}
+.wrapper { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px 60px; }
+
+/* NAV */
+nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; border-bottom: 1px solid var(--line); margin-bottom: 36px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-icon { width: 34px; height: 34px; background: var(--blue); border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; color: white; font-size: 17px; box-shadow: 0 2px 8px rgba(37,99,235,0.35); }
+.brand-name { font-size: 15px; font-weight: 700; color: var(--ink); letter-spacing: -0.02em; }
+.brand-name span { color: var(--blue); }
+.brand-tag { font-family: var(--mono); font-size: 9px; color: var(--mist); letter-spacing: 0.12em; text-transform: uppercase; display: block; margin-top: 1px; }
+.nav-right { display: flex; align-items: center; gap: 12px; }
+.status-badge { display: flex; align-items: center; gap: 7px; padding: 5px 12px; background: var(--green-lt); border: 1px solid #bbf7d0; border-radius: 20px; font-size: 11px; font-weight: 600; color: var(--green); font-family: var(--mono); }
+.status-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: breathe 2.5s ease-in-out infinite; }
+@keyframes breathe { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.7)} }
+#nav-clock { font-family: var(--mono); font-size: 11px; color: var(--mist); }
+
+/* HERO */
+.hero { margin-bottom: 36px; }
+.hero h1 { font-size: 26px; font-weight: 700; color: var(--ink); letter-spacing: -0.03em; line-height: 1.25; margin-bottom: 8px; }
+.hero h1 em { font-style: normal; color: var(--blue); }
+.hero p { color: var(--mist); font-size: 14px; max-width: 520px; line-height: 1.6; }
+
+/* CARDS */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
+.card-header { padding: 14px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; background: #fafbfe; }
+.card-title { font-size: 11px; font-weight: 600; color: var(--mist); letter-spacing: 0.1em; text-transform: uppercase; font-family: var(--mono); }
+.card-body { padding: 20px; }
+
+/* GRID */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+
+/* SAMPLES */
+.samples-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+.samples-label { font-size: 11px; font-weight: 600; color: var(--mist); letter-spacing: 0.08em; text-transform: uppercase; font-family: var(--mono); white-space: nowrap; }
+.sample-pill { padding: 5px 13px; border-radius: 20px; border: 1px solid var(--line); background: var(--surface); font-size: 12px; font-weight: 500; color: var(--ink-low); cursor: pointer; transition: all 0.15s; font-family: var(--sans); }
+.sample-pill:hover { border-color: var(--blue-dim); color: var(--blue); background: var(--blue-lt); transform: translateY(-1px); }
+.sample-pill.danger:hover { border-color: var(--red); color: var(--red); background: var(--red-lt); }
+
+/* INPUT TABS */
+.input-tabs { display: flex; gap: 2px; background: var(--paper); border-radius: var(--r-sm); padding: 3px; margin-bottom: 16px; border: 1px solid var(--line); width: fit-content; }
+.itab { padding: 6px 16px; border-radius: 5px; border: none; background: transparent; color: var(--mist); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: var(--sans); }
+.itab.active { background: var(--surface); color: var(--blue); box-shadow: var(--shadow-sm); }
+
+/* INPUTS */
+textarea, .url-field { width: 100%; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--paper); color: var(--ink); font-family: var(--mono); font-size: 12.5px; line-height: 1.7; padding: 14px 16px; transition: border-color 0.15s, box-shadow 0.15s; outline: none; }
+textarea { min-height: 160px; resize: vertical; }
+.url-field { height: 46px; resize: none; }
+textarea:focus, .url-field:focus { border-color: var(--blue-dim); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); background: var(--surface); }
+textarea::placeholder, .url-field::placeholder { color: var(--mist); }
+
+/* BUTTONS */
+.btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 22px; border-radius: var(--r-md); border: none; font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; letter-spacing: 0.01em; }
+.btn-primary { background: var(--blue); color: white; box-shadow: 0 2px 8px rgba(37,99,235,0.3); }
+.btn-primary:hover:not(:disabled) { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(37,99,235,0.4); }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.btn-ghost { background: var(--paper); color: var(--ink-low); border: 1px solid var(--line); }
+.btn-ghost:hover { background: var(--surface); color: var(--ink); border-color: var(--mist); }
+
+/* PROGRESS */
+.progress-wrap { display: none; margin-top: 14px; }
+.progress-wrap.active { display: block; }
+.progress-label { font-family: var(--mono); font-size: 11px; color: var(--mist); margin-bottom: 8px; display: flex; justify-content: space-between; }
+.progress-track { height: 5px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--blue), #60a5fa); transition: width 0.3s ease; width: 0%; box-shadow: 0 0 6px rgba(37,99,235,0.4); }
+
+/* ERROR */
+.error-box { display: none; padding: 14px 18px; background: var(--red-lt); border: 1px solid #fca5a5; border-radius: var(--r-md); color: var(--red); font-size: 13px; margin-top: 12px; font-weight: 500; align-items: center; gap: 8px; }
+.error-box.visible { display: flex; }
+
+/* RESULT */
+#result-section { display: none; margin-top: 28px; }
+#result-section.visible { display: block; animation: slideUp 0.35s ease; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+/* VERDICT */
+.verdict-banner { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 24px 28px; border-radius: var(--r-lg); margin-bottom: 20px; border: 1.5px solid; flex-wrap: wrap; }
+.verdict-banner.phishing   { background: var(--red-lt);   border-color: #fca5a5; }
+.verdict-banner.suspicious { background: var(--amber-lt); border-color: #fcd34d; }
+.verdict-banner.safe       { background: var(--green-lt); border-color: #86efac; }
+.verdict-left { display: flex; align-items: center; gap: 16px; flex: 1; }
+.verdict-emoji { font-size: 38px; line-height: 1; flex-shrink: 0; }
+.verdict-label { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; font-family: var(--mono); line-height: 1.2; }
+.verdict-banner.phishing   .verdict-label { color: var(--red); }
+.verdict-banner.suspicious .verdict-label { color: var(--amber); }
+.verdict-banner.safe       .verdict-label { color: var(--green); }
+.verdict-explanation { font-size: 13px; color: var(--ink-low); margin-top: 5px; max-width: 420px; line-height: 1.55; }
+
+/* SCORE RING */
+.score-ring-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
+.score-ring-container { position: relative; width: 96px; height: 96px; }
+.score-ring-container svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring-track { fill: none; stroke: rgba(0,0,0,0.08); stroke-width: 7; }
+.ring-fill  { fill: none; stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1), stroke 0.4s; }
+.score-ring-inner { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.score-big { font-family: var(--mono); font-size: 22px; font-weight: 600; line-height: 1; }
+.score-pct { font-size: 10px; color: var(--mist); font-family: var(--mono); }
+.score-ring-label { font-size: 10px; font-weight: 600; color: var(--mist); letter-spacing: 0.08em; text-transform: uppercase; font-family: var(--mono); }
+
+/* MODULE SCORES */
+.module-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
+.module-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 14px 16px; box-shadow: var(--shadow-sm); }
+.module-name { font-family: var(--mono); font-size: 10px; font-weight: 600; color: var(--mist); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+.module-bar-track { height: 5px; background: var(--line); border-radius: 99px; overflow: hidden; margin-bottom: 8px; }
+.module-bar-fill  { height: 100%; border-radius: 99px; transition: width 1.1s cubic-bezier(0.4,0,0.2,1); width: 0%; }
+.module-val { font-family: var(--mono); font-size: 18px; font-weight: 600; }
+
+/* FORMULA */
+.formula-wrap { background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-md); padding: 14px 16px; margin-bottom: 20px; }
+.formula-label { font-family: var(--mono); font-size: 10px; color: var(--mist); letter-spacing: 0.08em; margin-bottom: 10px; }
+.formula-bar { height: 8px; border-radius: 99px; overflow: hidden; display: flex; gap: 2px; }
+.formula-seg { height: 100%; border-radius: 2px; transition: width 1s ease; }
+.formula-legend { display: flex; gap: 16px; margin-top: 9px; flex-wrap: wrap; }
+.f-item { display: flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; color: var(--mist); }
+.f-dot  { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+/* DETAIL GRID */
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+
+/* REASONS */
+.reasons-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.reason-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: var(--r-sm); border-left: 3px solid; font-size: 13px; line-height: 1.5; animation: fadeUp 0.3s ease both; }
+.reason-item.critical  { background: #fff5f5; border-left-color: var(--red);      color: #7f1d1d; }
+.reason-item.warning   { background: #fffbeb; border-left-color: var(--amber);    color: #78350f; }
+.reason-item.info      { background: #eff6ff; border-left-color: var(--blue-dim); color: #1e3a5f; }
+.reason-item.ok        { background: var(--green-lt); border-left-color: var(--green); color: #14532d; }
+.reason-icon { flex-shrink: 0; }
+
+/* MANIP TAGS */
+.manip-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.manip-tag { padding: 5px 13px; border-radius: 20px; font-size: 12px; font-weight: 600; border: 1.5px solid; font-family: var(--mono); letter-spacing: 0.03em; animation: fadeUp 0.4s ease both; }
+.mt-urgency   { background: #fff0f0; border-color: #fca5a5; color: var(--red); }
+.mt-fear      { background: #fff7ed; border-color: #fdba74; color: #c2410c; }
+.mt-reward    { background: #fffbeb; border-color: #fcd34d; color: var(--amber); }
+.mt-authority { background: #f5f3ff; border-color: #c4b5fd; color: #6d28d9; }
+.mt-none      { background: var(--green-lt); border-color: #86efac; color: var(--green); }
+
+/* URL FEATS */
+.url-feat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.url-feat-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-sm); font-family: var(--mono); font-size: 11px; color: var(--ink-low); }
+.feat-indicator { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.feat-bad  { background: var(--red);   box-shadow: 0 0 4px rgba(220,38,38,0.5); }
+.feat-good { background: var(--green); box-shadow: 0 0 4px rgba(22,163,74,0.5); }
+.feat-warn { background: var(--amber); box-shadow: 0 0 4px rgba(217,119,6,0.5); }
+
+/* RECOMMENDATION */
+.recommendation { padding: 14px 16px; border-radius: var(--r-md); background: #eff6ff; border: 1px solid #bfdbfe; font-size: 13px; line-height: 1.6; color: var(--ink); }
+.recommendation strong { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--blue); text-transform: uppercase; margin-bottom: 6px; }
+
+/* GRAPH */
+#graph-canvas { width: 100%; height: 230px; display: block; border-radius: var(--r-sm); background: var(--paper); border: 1px solid var(--line); }
+.graph-legend { display: flex; gap: 14px; margin-top: 10px; flex-wrap: wrap; }
+.leg-item { display: flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; color: var(--mist); }
+.leg-dot  { width: 9px; height: 9px; border-radius: 50%; }
+
+/* HISTORY */
+.history-list { display: flex; flex-direction: column; gap: 7px; max-height: 200px; overflow-y: auto; }
+.history-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-sm); transition: all 0.12s; }
+.history-row:hover { border-color: var(--blue-dim); background: var(--blue-lt); }
+.history-score   { font-family: var(--mono); font-size: 13px; font-weight: 600; min-width: 38px; }
+.history-preview { flex: 1; font-family: var(--mono); font-size: 11px; color: var(--mist); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-time    { font-family: var(--mono); font-size: 10px; color: var(--mist); flex-shrink: 0; }
+.history-empty   { font-family: var(--mono); font-size: 12px; color: var(--mist); text-align: center; padding: 24px; }
+
+/* HOW IT WORKS */
+.how-card { padding: 18px 20px; }
+.how-card .icon { font-size: 22px; margin-bottom: 8px; }
+.how-card h3 { font-weight: 600; font-size: 13px; margin-bottom: 5px; color: var(--ink); }
+.how-card p  { font-size: 12px; color: var(--mist); line-height: 1.55; }
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: var(--paper); } ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 99px; }
+@media (max-width: 700px) { .grid-2, .detail-grid, .grid-3 { grid-template-columns: 1fr; } .module-grid { grid-template-columns: 1fr 1fr; } .verdict-banner { flex-direction: column; } }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <nav>
+    <div class="brand">
+      <div class="brand-icon">🛡</div>
+      <div>
+        <div class="brand-name">Sentinel<span>AI</span></div>
+        <span class="brand-tag">Phishing Intelligence System · v2.0</span>
+      </div>
+    </div>
+    <div class="nav-right">
+      <div class="status-badge"><div class="dot"></div>System Online</div>
+      <div id="nav-clock"></div>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <h1>Detect phishing before it <em>catches you.</em></h1>
+    <p>Paste any suspicious email, message, or URL. Our multi-layer AI engine analyzes it for threat indicators and explains exactly what it found — in plain language.</p>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><span>📥</span><span class="card-title">Input Analysis</span></div>
+    <div class="card-body">
+      <div class="samples-row">
+        <span class="samples-label">Try a sample →</span>
+        <button class="sample-pill danger" onclick="loadSample('phish1')">🎣 Phishing Email</button>
+        <button class="sample-pill danger" onclick="loadSample('phish2')">💳 Banking Scam</button>
+        <button class="sample-pill danger" onclick="loadSample('phish3')">🎁 Scholarship Lure</button>
+        <button class="sample-pill" onclick="loadSample('safe1')">✅ Safe Email</button>
+        <button class="sample-pill" onclick="loadUrlMode('bad1')">🔗 Phishing URL</button>
+        <button class="sample-pill" onclick="loadUrlMode('safe1')">🔗 Safe URL</button>
+      </div>
+      <div class="input-tabs">
+        <button class="itab active" id="tab-email" onclick="switchTab('email')">📧 Email / Message</button>
+        <button class="itab" id="tab-url" onclick="switchTab('url')">🔗 URL</button>
+      </div>
+      <div id="input-email">
+        <textarea id="email-input" placeholder="Paste an email or message here for threat analysis...
+
+Example:
+Your account will be suspended today. Click here to verify your password immediately."></textarea>
+      </div>
+      <div id="input-url" style="display:none;">
+        <textarea id="url-input" class="url-field" style="height:46px;min-height:46px;resize:none;" placeholder="Enter a URL, e.g. http://paypal-login-verify.xyz/confirm"></textarea>
+        <div style="margin-top:8px;padding:8px 12px;background:var(--amber-lt);border:1px solid #fcd34d;border-radius:var(--r-sm);font-size:12px;color:var(--amber);font-family:var(--mono);">
+          💡 URL mode: structural analysis runs locally. For full AI analysis, paste the URL inside an email body.
+        </div>
+      </div>
+      <div class="progress-wrap" id="progress-wrap">
+        <div class="progress-label">
+          <span id="progress-label-text">Running analysis...</span>
+          <span id="progress-pct">0%</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      </div>
+      <div class="error-box" id="error-box"><span>⚠</span><span id="error-text">Analysis failed.</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;">
+        <span style="font-family:var(--mono);font-size:11px;color:var(--mist);" id="char-count">0 characters</span>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-ghost" onclick="clearAll()">Clear</button>
+          <button class="btn btn-primary" id="analyze-btn" onclick="runAnalysis()" disabled><span>🔍</span> Analyze</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="how-it-works" class="grid-3" style="margin-bottom:24px;">
+    <div class="card"><div class="how-card"><div class="icon">🧠</div><h3>NLP Analysis</h3><p>Detects credential requests, urgency phrases, authority impersonation, and reward lures using pattern matching + Claude AI classification.</p></div></div>
+    <div class="card"><div class="how-card"><div class="icon">🔗</div><h3>URL Risk Scoring</h3><p>Checks TLDs, IP address use, domain length, hyphenation, suspicious keywords, HTTPS status, and brand impersonation patterns.</p></div></div>
+    <div class="card"><div class="how-card"><div class="icon">📡</div><h3>Graph Threat Intel</h3><p>Models relationships between sender, domain, IP, and URLs. Connected suspicious nodes increase the final risk score.</p></div></div>
+  </div>
+
+  <div id="result-section">
+    <div class="verdict-banner" id="verdict-banner">
+      <div class="verdict-left">
+        <div class="verdict-emoji" id="verdict-emoji">🛡</div>
+        <div>
+          <div class="verdict-label" id="verdict-label">—</div>
+          <div class="verdict-explanation" id="verdict-explanation"></div>
+        </div>
+      </div>
+      <div class="score-ring-wrap">
+        <div class="score-ring-container">
+          <svg viewBox="0 0 96 96">
+            <circle class="ring-track" cx="48" cy="48" r="40"/>
+            <circle class="ring-fill" id="main-ring" cx="48" cy="48" r="40" stroke-dasharray="251.33" stroke-dashoffset="251.33"/>
+          </svg>
+          <div class="score-ring-inner">
+            <div class="score-big" id="main-score-num">0</div>
+            <div class="score-pct">/ 100</div>
+          </div>
+        </div>
+        <div class="score-ring-label">Risk Score</div>
+      </div>
+    </div>
+
+    <div class="module-grid">
+      <div class="module-card"><div class="module-name">NLP Score</div><div class="module-bar-track"><div class="module-bar-fill" id="bar-nlp"></div></div><div class="module-val" id="val-nlp">—</div></div>
+      <div class="module-card"><div class="module-name">URL Risk</div><div class="module-bar-track"><div class="module-bar-fill" id="bar-url"></div></div><div class="module-val" id="val-url">—</div></div>
+      <div class="module-card"><div class="module-name">Manipulation</div><div class="module-bar-track"><div class="module-bar-fill" id="bar-manip"></div></div><div class="module-val" id="val-manip">—</div></div>
+      <div class="module-card"><div class="module-name">Graph Intel</div><div class="module-bar-track"><div class="module-bar-fill" id="bar-graph"></div></div><div class="module-val" id="val-graph">—</div></div>
+    </div>
+
+    <div class="formula-wrap">
+      <div class="formula-label">FINAL SCORE = 0.40 × NLP + 0.35 × URL RISK + 0.15 × MANIPULATION + 0.10 × GRAPH INTEL</div>
+      <div class="formula-bar" id="formula-bar"></div>
+      <div class="formula-legend">
+        <div class="f-item"><div class="f-dot" style="background:#3b82f6"></div>NLP 40%</div>
+        <div class="f-item"><div class="f-dot" style="background:#f59e0b"></div>URL 35%</div>
+        <div class="f-item"><div class="f-dot" style="background:#ef4444"></div>Manipulation 15%</div>
+        <div class="f-item"><div class="f-dot" style="background:#8b5cf6"></div>Graph 10%</div>
+      </div>
+    </div>
+
+    <div class="detail-grid">
+      <div class="card">
+        <div class="card-header"><span>🔍</span><span class="card-title">Threat Indicators</span></div>
+        <div class="card-body"><ul class="reasons-list" id="reasons-list"></ul></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span>🧠</span><span class="card-title">Manipulation Tactics</span></div>
+        <div class="card-body">
+          <div id="manip-desc" style="font-size:12px;color:var(--mist);margin-bottom:10px;"></div>
+          <div class="manip-tags" id="manip-tags"></div>
+          <div id="url-feats-wrap" style="margin-top:12px;display:none;">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--mist);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">URL Feature Breakdown</div>
+            <div class="url-feat-grid" id="url-feat-grid"></div>
+          </div>
+          <div class="recommendation" style="margin-top:14px;">
+            <strong><span>💡</span> Recommendation</strong>
+            <span id="rec-text"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><span>📡</span><span class="card-title">Threat Network Graph</span></div>
+        <div class="card-body" style="padding-bottom:14px;">
+          <canvas id="graph-canvas"></canvas>
+          <div class="graph-legend" id="graph-legend"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span>📜</span><span class="card-title">Analysis History</span></div>
+        <div class="card-body">
+          <div class="history-list" id="history-list"><div class="history-empty">No analyses yet</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* =======================================================
+   SENTINELAI — COMPLETE ANALYSIS ENGINE
+   Dual engine: Local pattern matching + Claude AI API
+   ======================================================= */
+
+co
+  "verdict": "PHISHING" | "SUSPICIOUS" | "SAFE",
+  "riskScore": <number 0-100>,
+  "nlpScore": <number 0-100>,
+  "urlScore": <number 0-100>,
+  "manipulationScore": <number 0-100>,
+  "graphScore": <number 0-100>,
+  "reasons": [<array of 3-5 specific reason strings>],
+  "manipulationTactics": [<detected tactics: "Urgency", "Fear", "Authority", "Reward" — can be empty>],
+  "recommendation": "<one clear action sentence>",
+  "explanation": "<2-3 sentence plain-language explanation>"
+}
+
+Be precise. Base all scores on actual content analysis.`;
+
+const SAMPLES = {
+  phish1: `Dear Student,\n\nYour university account has beenarship winner!\n\nYou have won $5,000 in scholarship funds. Claim your prize before it expires!\n\nhttp://scholarship-winners-2024.net/claim\n\nProvide your bank account details and student ID to receive the transfer.\n\nThis offer expires TODAY. Last chance!\n\nScholarship Committee`,
+  safe1:  `Hi Sarah,\n\nJust a reminder our Computer Science study group meets tomorrow at 3 PM in the library, Room 204.\n\nWe'll cover chapters 5-7 for the upcoming exam. Bring your textbook.\n\nSee you then!\nAlex`
+};
+const 
+
+let currentMode = 'email', analysisHistory = [], isAnalyzing = false;
+function $(id){ return document.getElementById(id); }
+function scoreColor(s){ return s>=70?'#dc2626':s>=40?'#d97706':'#16a34a'; }
+function getVerdict(s){
+  if(s>=70) return {label:'PHISHING DETECTED',cls:'phishing',  emoji:'🚨',color:'#dc2626'};
+  if(s>=40) return {label:'SUSPICIOUS',       cls:'suspicious',emoji:'⚠️',color:'#d97706'};
+  return           {label:'LIKELY SAFE',      cls:'safe',      emoji:'✅',color:'#16a34a'};
+}
+function animateNum(el,from,to,dur){
+  const s=performance.now();
+  (function t(n){const p=Math.min((n-s)/dur,1),e=1-Math.pow(1-p,3);el.textContent=Math.round(from+(to-from)*e);if(p<1)requestAnimationFrame(t);})(s);
+}
+function setProgress(pct,label){
+  $('progress-fill').style.width=pct+'%';
+  $('progress-pct').textContent=Math.round(pct)+'%';
+  if(label)$('progress-label-text').textContent=label;
+}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+function switchTab(mode){
+  currentMode=mode;
+  $('tab-email').classList.toggle('active',mode==='email');
+  $('tab-url').classList.toggle('active',mode==='url');
+  $('input-email').style.display=mode==='email'?'block':'none';
+  $('input-url').style.display=mode==='url'?'block':'none';
+  updateCharCount();
+}
+function loadSample(k){ switchTab('email'); $('email-input').value=SAMPLES[k]; updateCharCount(); }
+function loadUrlMode(k){ switchTab('url'); $('url-input').value=URL_SAMPLES[k]; updateCharCount(); }
+function clearAll(){
+  $('email-input').value=''; $('url-input').value=''; updateCharCount();
+  $('result-section').classList.remove('visible'); $('how-it-works').style.display=''; $('error-box').classList.remove('visible');
+}
+function updateCharCount(){
+  const txt=currentMode==='email'?$('email-input').value:$('url-input').value;
+  const w=txt.trim().split(/\s+/).filter(Boolean).length;
+  $('char-count').textContent=`${txt.length} chars · ${w} words`;
+  $('analyze-btn').disabled=txt.trim().length===0;
+}
+$('email-input').addEventListener('input',updateCharCount);
+$('url-input').addEventListener('input',updateCharCount);
+
+/* LOCAL NLP ENGINE */
+const NLP_PATTERNS=[
+  {re:[/verify.{0,20}(password|login|credentials|account)/i,/confirm.{0,20}(password|identity)/i,/enter.{0,20}(username|password)/i],label:'Credential harvesting request detected',sev:'critical',score:35},
+  {re:[/expire[sd]?\s*(today|soon|immediately|now|in\s*\d)/i,/act\s*now/i,/urgent/i,/immediately/i,/within\s*\d+\s*hours?/i,/suspend/i,/terminated/i],label:'Urgency manipulation tactic detected',sev:'critical',score:25,manip:'Urgency'},
+  {re:[/compromise[d]?/i,/suspicious\s*activity/i,/unauthorized/i,/hack(ed)?/i,/breach/i],label:'Fear-based social engineering detected',sev:'warning',score:20,manip:'Fear'},
+  {re:[/congratulations/i,/you\s*won/i,/prize/i,/reward/i,/free.*scholarship/i,/claim.*now/i],label:'Reward-lure phishing tactic detected',sev:'warning',score:20,manip:'Reward'},
+  {re:[/university\s*(admin|administration|it)/i,/it\s*(department|support)/i,/official\s*notice/i,/paypal\s*(security|team)/i],label:'Authority impersonation attempt detected',sev:'warning',score:20,manip:'Authority'},
+  {re:[/click\s*(here|this\s*link|below)/i,/https?:\/\/[^\s]*(login|verify|secure|confirm)[^\s]*/i],label:'Suspicious link or call-to-action present',sev:'critical',score:25},
+  {re:[/bank\s*(account|details)/i,/credit\s*card/i,/ssn|social\s*security/i,/date\s*of\s*birth/i],label:'Request for sensitive personal information',sev:'critical',score:30}
+];
+
+function localAnalyzeEmail(text){
+  const r={nlpScore:0,urlScore:0,manipScore:0,graphScore:0,reasons:[],manipTypes:[],urlFeatures:null};
+  const urls=text.match(/https?:\/\/[^\s]+/gi)||[];
+  NLP_PATTERNS.forEach(p=>{
+    if(p.re.some(rx=>rx.test(text))){
+      r.nlpScore+=p.score; r.reasons.push({text:p.label,sev:p.sev});
+      if(p.manip)r.manipTypes.push(p.manip);
+    }
+  });
+  r.nlpScore=Math.min(r.nlpScore,100);
+  if(urls.length>0){const ur=analyzeURL(urls[0]);r.urlScore=ur.score;r.urlFeatures=ur.features;if(ur.score>25)r.reasons.push({text:`Embedded URL flagged — risk score ${ur.score}%`,sev:'critical'});}
+  r.graphScore=urls.length>0?Math.min(40+urls.length*12,80):5;
+  r.manipScore=Math.min(r.manipTypes.length*28,100);
+  return r;
+}
+
+const STLDS=['.xyz','.tk','.ml','.cf','.ga','.gq','.top','.click','.download'];
+const PKWDS=['login','verify','secure','account','update','confirm','password','banking'];
+const BRANDS=['paypal','google','microsoft','facebook','amazon','apple','university','bank'];
+
+function analyzeURL(url){
+  const feats=[];let score=0;
+  if(url.startsWith('http://')){score+=15;feats.push({label:'No HTTPS (insecure)',status:'bad'});}
+  else feats.push({label:'HTTPS Present',status:'good'});
+  if(/https?:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(url)){score+=40;feats.push({label:'Raw IP address used',status:'bad'});}
+  else feats.push({label:'Domain name used',status:'good'});
+  if(url.length>75){score+=15;feats.push({label:`Long URL (${url.length} chars)`,status:'bad'});}
+  else feats.push({label:'URL length OK',status:'good'});
+  try{
+    const host=new URL(url.startsWith('http')?url:'http://'+url).hostname;
+    const parts=host.split('.');const tld='.'+parts[parts.length-1];
+    if(parts.length>3){score+=20;feats.push({label:`Deep subdomain (${parts.length-2} levels)`,status:'bad'});}
+    if(STLDS.includes(tld)){score+=30;feats.push({label:`Suspicious TLD: ${tld}`,status:'bad'});}
+    else feats.push({label:`TLD: ${tld}`,status:tld==='.edu'||tld==='.gov'?'good':'warn'});
+    if(host.includes('-')){score+=20;feats.push({label:'Hyphenated domain (spoof pattern)',status:'bad'});}
+    const lh=host.toLowerCase();
+    const official=['paypal.com','google.com','microsoft.com','apple.com','amazon.com'];
+    if(!official.some(o=>lh===o||lh.endsWith('.'+o))&&BRANDS.some(b=>lh.includes(b))){score+=35;feats.push({label:'Brand name in unofficial domain',status:'bad'});}
+    if(PKWDS.some(k=>url.toLowerCase().includes(k))){score+=25;feats.push({label:'Phishing keyword in URL path',status:'bad'});}
+  }catch(e){feats.push({label:'Malformed URL structure',status:'bad'});score+=20;}
+  return{score:Math.min(score,100),features:feats};
+}
+
+function computeFinal(r){return Math.round(0.40*r.nlpScore+0.35*r.urlScore+0.15*r.manipScore+0.10*r.graphScore);}
+
+function fallbackExplanation(score,mode){
+  if(score>=70)return`This ${mode==='url'?'URL':'message'} shows strong indicators of a phishing attempt. Multiple threat patterns were detected. Do not interact with it.`;
+  if(score>=40)return`This ${mode==='url'?'URL':'message'} contains suspicious elements. The ${score}% risk score warrants caution — verify through official channels before acting.`;
+  return`This ${mode==='url'?'URL':'message'} appears legitimate with a low risk score of ${score}%. No significant phishing indicators were detected.`;
+}
+function fallbackRec(score,mode){
+  if(score>=70)return mode==='url'?'Do not visit this URL. Report it to your IT security team.':'Do not click any links. Report this message to your IT security team as phishing.';
+  if(score>=40)return'Approach with caution. Verify by contacting the organization through their official website.';
+  return'This appears safe, but stay vigilant. Never share passwords in response to any message.';
+}
+
+/* CLAUDE AI CALL */
+async function callClaude(text){
+  const res=await fetch()
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:',max_tokens:1000,system:SYSTEM_PROMPT,messages:[{role:'user',content:`Analyze this for phishing:\n\n${text}`}]})
+  });
+  const data=await res.json();
+  const raw=(data.content||[]).map(b=>b.text||'').join('');
+  return JSON.parse(raw.replace(/```json|```/g,'').trim());
+}
+
+/* MAIN RUNNER */
+async function runAnalysis(){
+  if(isAnalyzing)return;
+  const text=currentMode==='email'?$('email-input').value.trim():$('url-input').value.trim();
+  if(!text)return;
+  isAnalyzing=true; $('analyze-btn').disabled=true;
+  $('error-box').classList.remove('visible');
+  $('result-section').classList.remove('visible');
+  $('how-it-works').style.display='none';
+  $('progress-wrap').classList.add('active');
+  setProgress(5,'Initializing analysis modules...');
+  let local,finalScore;
+  try{
+    setProgress(20,'Running NLP pattern matching...'); await sleep(250);
+    if(currentMode==='url'){
+      const ur=analyzeURL(text);
+      local={nlpScore:0,urlScore:ur.score,manipScore:0,graphScore:ur.score>30?40:5,reasons:[],manipTypes:[],urlFeatures:ur.features};
+      if(ur.score>=70)local.reasons.push({text:'Domain matches known phishing patterns',sev:'critical'});
+      if(ur.score>=40)local.reasons.push({text:'Multiple suspicious URL characteristics found',sev:'warning'});
+      if(!text.startsWith('https'))local.reasons.push({text:'Unencrypted HTTP connection',sev:'critical'});
+    } else { local=localAnalyzeEmail(text); }
+    setProgress(45,'Analyzing URL risk patterns...'); await sleep(200);
+    setProgress(60,'Detecting manipulation tactics...'); await sleep(200);
+    setProgress(72,'Calling Claude AI threat intelligence...');
+    try{
+      const api.recommendation;
+    }catch(e){
+      console.warn('Claude API unavailable — using local engine:',e.message);
+      local.explanation=fallbackExplanation(computeFinal(local),currentMode);
+      local.recommendation=fallbackRec(computeFinal(local),currentMode);
+    }
+    finalScore=local.finalScore??computeFinal(local);
+    setProgress(100,'Analysis complete'); await sleep(250);
+    displayResults(local,finalScore,currentMode);
+    addHistory(text,finalScore);
+  }catch(err){
+    $('error-text').textContent='Error: '+err.message;
+    $('error-box').classList.add('visible');
+  }finally{
+    $('progress-wrap').classList.remove('active');
+    setProgress(0); $('analyze-btn').disabled=false; isAnalyzing=false;
+  }
+}
+
+/* DISPLAY */
+function displayResults(r,score,mode){
+  const v=getVerdict(score);
+  $('verdict-banner').className=`verdict-banner ${v.cls}`;
+  $('verdict-emoji').textContent=v.emoji;
+  $('verdict-label').textContent=v.label;
+  $('verdict-explanation').textContent=r.explanation||fallbackExplanation(score,mode);
+  const ring=$('main-ring');
+  ring.style.stroke=v.color; ring.style.filter=`drop-shadow(0 0 5px ${v.color}88)`;
+  setTimeout(()=>{ring.style.strokeDashoffset=251.33-(score/100)*251.33;$('main-score-num').style.color=v.color;animateNum($('main-score-num'),0,score,1100);},50);
+  setTimeout(()=>{setMod('nlp',mode==='url'?0:r.nlpScore);setMod('url',r.urlScore);setMod('manip',r.manipScore);setMod('graph',r.graphScore);buildFormula(r,mode);},200);
+
+  const list=$('reasons-list'); list.innerHTML='';
+  const items=r.reasons.length>0?r.reasons:[{text:'No significant threats detected.',sev:'ok'}];
+  items.forEach((item,i)=>{
+    const li=document.createElement('li');
+    li.className=`reason-item ${item.sev||'info'}`; li.style.animationDelay=`${i*0.08}s`;
+    const icons={critical:'🔴',warning:'🟡',info:'🔵',ok:'✅'};
+    li.innerHTML=`<span class="reason-icon">${icons[item.sev]||'⬡'}</span><span>${item.text}</span>`;
+    list.appendChild(li);
+  });
+
+  const tags=$('manip-tags'); tags.innerHTML='';
+  $('manip-desc').textContent=r.manipTypes.length===0?'No psychological manipulation tactics detected.':`${r.manipTypes.length} tactic(s) targeting human psychology:`;
+  if(r.manipTypes.length===0){const t=document.createElement('div');t.className='manip-tag mt-none';t.textContent='✓ Clean';tags.appendChild(t);}
+  else r.manipTypes.forEach((m,i)=>{const t=document.createElement('div');t.className=`manip-tag mt-${m.toLowerCase()}`;t.style.animationDelay=`${i*0.1}s`;const em={Urgency:'⏰',Fear:'😨',Reward:'🎁',Authority:'👤'};t.textContent=`${em[m]||''} ${m}`;tags.appendChild(t);});
+
+  const ufw=$('url-feats-wrap');
+  if(r.urlFeatures&&r.urlFeatures.length>0){
+    ufw.style.display='block'; const fg=$('url-feat-grid'); fg.innerHTML='';
+    r.urlFeatures.forEach(f=>{const d=document.createElement('div');d.className='url-feat-item';d.innerHTML=`<div class="feat-indicator feat-${f.status}"></div><span>${f.label}</span>`;fg.appendChild(d);});
+  } else ufw.style.display='none';
+
+  $('rec-text').textContent=r.recommendation||fallbackRec(score,mode);
+  drawGraph(r,score);
+  $('result-section').classList.add('visible');
+  $('result-section').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function setMod(k,v){const c=scoreColor(v);$(`bar-${k}`).style.width=v+'%';$(`bar-${k}`).style.background=c;$(`val-${k}`).textContent=v+'%';$(`val-${k}`).style.color=c;}
+function buildFormula(r,mode){
+  $('formula-bar').innerHTML=[{w:40,v:mode==='url'?0:r.nlpScore,color:'#3b82f6'},{w:35,v:r.urlScore,color:'#f59e0b'},{w:15,v:r.manipScore,color:'#ef4444'},{w:10,v:r.graphScore,color:'#8b5cf6'}]
+  .map(s=>`<div class="formula-seg" style="width:${s.w}%;background:${s.color};opacity:${0.25+(s.v/100)*0.75};"></div>`).join('');
+}
+
+/* GRAPH */
+function drawGraph(r,score){
+  const canvas=$('graph-canvas'),ctx=canvas.getContext('2d');
+  const W=canvas.offsetWidth||420,H=230; canvas.width=W; canvas.height=H;
+  ctx.fillStyle='#f4f6fb'; ctx.fillRect(0,0,W,H);
+  const nc=score>=70?'#dc2626':score>=40?'#d97706':'#16a34a';
+  const mc=r.manipTypes.length>0?'#dc2626':'#16a34a';
+  const nodes=[
+    {label:'Input',  x:W*.50,y:H*.13,r:13,color:'#2563eb'},
+    {label:'Content',x:W*.24,y:H*.43,r:10,color:'#6366f1'},
+    {label:'Domain', x:W*.70,y:H*.40,r:10,color:nc},
+    {label:'URLs',   x:W*.55,y:H*.70,r:9, color:nc},
+    {label:'IP/Host',x:W*.82,y:H*.73,r:9, color:nc},
+    {label:'Tactics',x:W*.20,y:H*.78,r:9, color:mc}
+  ];
+  const edges=[[0,1],[0,2],[1,3],[2,3],[2,4],[1,5]];
+  ctx.strokeStyle='rgba(100,130,180,0.2)'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
+  edges.forEach(([a,b])=>{ctx.beginPath();ctx.moveTo(nodes[a].x,nodes[a].y);ctx.lineTo(nodes[b].x,nodes[b].y);ctx.stroke();});
+  ctx.setLineDash([]);
+  nodes.forEach(n=>{
+    const g=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,n.r*2.5);
+    g.addColorStop(0,n.color+'44'); g.addColorStop(1,'transparent');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(n.x,n.y,n.r*2.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=n.color; ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#3e4a60'; ctx.font='10px IBM Plex Mono,monospace'; ctx.textAlign='center';
+    ctx.fillText(n.label,n.x,n.y+n.r+13);
+  });
+  $('graph-legend').innerHTML=`
+    <div class="leg-item"><div class="leg-dot" style="background:#2563eb"></div>Input</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#6366f1"></div>Content</div>
+    <div class="leg-item"><div class="leg-dot" style="background:${nc}"></div>Domain/URL</div>
+    <div class="leg-item"><div class="leg-dot" style="background:${mc}"></div>${r.manipTypes.length>0?'Threat Tactics':'No Tactics'}</div>`;
+}
+
+/* HISTORY */
+function addHistory(input,score){
+  const v=getVerdict(score);
+  const preview=input.replace(/\n/g,' ').substring(0,50)+(input.length>50?'…':'');
+  const time=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  analysisHistory.unshift({preview,score,time,color:v.color});
+  if(analysisHistory.length>10)analysisHistory.pop();
+  $('history-list').innerHTML=analysisHistory.map(h=>`
+    <div class="history-row">
+      <div class="history-score" style="color:${h.color}">${h.score}%</div>
+      <div class="history-preview">${h.preview}</div>
+      <div class="history-time">${h.time}</div>
+    </div>`).join('');
+}
+
+/* CLOCK */
+function tick(){$('nav-clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});}
+setInterval(tick,1000); tick();
+</script>
+</body>
+</html>
